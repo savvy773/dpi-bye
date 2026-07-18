@@ -1,0 +1,26 @@
+# local runtime
+.venv/
+.uv-cache/
+.data/
+_temp/
+__pycache__/
+*.py[cod]
+
+# tooling caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# ide
+.vscode/
+.idea/
+
+# build artifacts
+*.egg-info/
+
+# stray WinDivert binaries (real copies live inside .venv)
+/WinDivert.dll
+/WinDivert64.dll
+/WinDivert64.sys
+/WinDivert32.sys
+.venv/Scripts/dpi-bypass.exe

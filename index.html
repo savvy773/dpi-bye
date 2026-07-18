@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPI Fragment Bypass</title>
+<meta name="description" content="Splits TLS ClientHello across multiple TCP segments to bypass SNI-based DPI blocking on Korean ISPs (KT · SKT · LGU+).">
+<style>
+  :root {
+    --bg: #0b0d10;
+    --bg-panel: #12151a;
+    --border: #23272e;
+    --text: #e6e8eb;
+    --text-dim: #9aa2ad;
+    --accent: #5fd0a5;
+    --accent-dim: #2c4a3e;
+    --code-bg: #0f1216;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa;
+      --bg-panel: #ffffff;
+      --border: #e2e5ea;
+      --text: #1a1d21;
+      --text-dim: #5b6470;
+      --accent: #1f8a63;
+      --accent-dim: #d7f0e4;
+      --code-bg: #eef1f4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0d10; --bg-panel: #12151a; --border: #23272e;
+    --text: #e6e8eb; --text-dim: #9aa2ad; --accent: #5fd0a5;
+    --accent-dim: #2c4a3e; --code-bg: #0f1216;
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8fa; --bg-panel: #ffffff; --border: #e2e5ea;
+    --text: #1a1d21; --text-dim: #5b6470; --accent: #1f8a63;
+    --accent-dim: #d7f0e4; --code-bg: #eef1f4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 64px 24px 96px; }
+  header { margin-bottom: 40px; }
+  .kicker {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 2.1rem; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .tagline { color: var(--text-dim); font-size: 1.05rem; margin: 0 0 24px; max-width: 60ch; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .badge {
+    font-size: 12px; color: var(--text-dim); border: 1px solid var(--border);
+    padding: 3px 9px; border-radius: 6px; background: var(--bg-panel);
+  }
+  .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    text-decoration: none; border: 1px solid var(--border);
+  }
+  .btn-primary { background: var(--accent); color: #08110d; border-color: var(--accent); }
+  .btn-ghost { color: var(--text); background: var(--bg-panel); }
+
+  section { margin: 48px 0; }
+  h2 { font-size: 1.15rem; margin: 0 0 16px; }
+  p { color: var(--text-dim); }
+
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+    color: var(--text);
+    white-space: pre;
+    line-height: 1.5;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td:first-child, th:first-child { color: var(--text); font-weight: 600; }
+
+  pre.code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13.5px;
+  }
+  code { font-family: inherit; }
+  .comment { color: var(--text-dim); }
+
+  ul.notes { color: var(--text-dim); font-size: 14px; padding-left: 20px; }
+  ul.notes li { margin-bottom: 6px; }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="kicker">WinDivert · Portable · No Installer</span>
+    <h1>DPI Fragment Bypass</h1>
+    <p class="tagline">
+      Splits TLS <code>ClientHello</code> across multiple TCP segments to bypass
+      SNI-based DPI blocking on Korean ISPs (KT · SKT · LGU+).
+    </p>
+    <div class="badges">
+      <span class="badge">Windows 10 / 11</span>
+      <span class="badge">Python via uv</span>
+      <span class="badge">Admin required</span>
+    </div>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/savvy773/dpi-bye">View on GitHub</a>
+      <a class="btn btn-ghost" href="https://github.com/savvy773/dpi-bye#quick-start">Quick Start</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>How it works</h2>
+    <p>
+      ISP DPI reads the plaintext SNI inside a TLS <code>ClientHello</code> before
+      encryption starts. Most DPI engines inspect one TCP segment at a time and
+      don't reassemble streams — so this tool intercepts the outbound packet,
+      fragments the payload, and re-injects the pieces as separate segments.
+      The server reassembles them normally; the DPI sees an incomplete SNI and
+      lets the traffic through.
+    </p>
+    <div class="diagram">Browser ──► ClientHello (SNI = blocked.site)
+                │
+           WinDivert (this tool)
+                │
+         split into fragments
+                │
+         ┌──────┴──────┐
+         ▼             ▼
+    [seg A: no SNI]  [seg B: no TLS header]
+         │             │
+    ISP DPI: can't match SNI ──► pass through
+         │             │
+    Server: reassembles stream ──► TLS OK ✓</div>
+  </section>
+
+  <section>
+    <h2>Fragment modes</h2>
+    <table>
+      <thead><tr><th>Mode</th><th>How</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td>packet_size ★</td><td>Split into N-byte chunks — more segments, stronger bypass</td><td>Default; works on most ISPs</td></tr>
+        <tr><td>offset</td><td>Parse SNI extension, split at hostname midpoint — 2 segments only</td><td>Lower CPU; try if packet_size is too slow</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="quick-start">
+    <h2>Quick start</h2>
+    <pre class="code"><span class="comment"># Install uv if not already present</span>
+winget install astral-sh.uv
+
+<span class="comment"># Clone and launch (auto-elevates to Administrator)</span>
+git clone https://github.com/savvy773/dpi-bye.git
+cd dpi-bye
+.\dpi-bypass.ps1</pre>
+    <p>Press <code>c</code> to connect, <code>q</code> to quit — WinDivert releases on exit and internet restores automatically.</p>
+  </section>
+
+  <section>
+    <h2>Notes</h2>
+    <ul class="notes">
+      <li>Intercepts outbound TCP 443 <code>ClientHello</code> only — all other traffic passes through unmodified.</li>
+      <li>QUIC / HTTP3 (UDP 443) is not handled.</li>
+      <li>WinDivert kernel driver loads on Connect and unloads on Disconnect/Quit — no permanent installation.</li>
+      <li>For personal and educational use. Verify compliance with your ISP's terms of service.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Built with <a href="https://github.com/basil00/WinDivert">WinDivert</a> +
+    <a href="https://github.com/ffalcinelli/pydivert">pydivert</a>.
+    Source on <a href="https://github.com/savvy773/dpi-bye">GitHub</a>.
+  </footer>
+
+</div>
+</body>
+</html>
