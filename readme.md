@@ -2,7 +2,7 @@
 
 > Splits TLS ClientHello across multiple TCP segments to bypass SNI-based DPI blocking on Korean ISPs (KT · SKT · LGU+).
 
-**[Project page →](https://savvy773.github.io/dpi-bye/)**  ·  License: [MIT](LICENSE)
+**[Project page →](https://savvy773.github.io/dpi-bye/)**  ·  License: [MIT](LICENSE)  ·  [Tech stack](docs/TECH_STACK.md)
 
 Built with [WinDivert](https://github.com/basil00/WinDivert) + [pydivert](https://github.com/ffalcinelli/pydivert). No installer — portable Python tool.
 
