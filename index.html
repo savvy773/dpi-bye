@@ -15,8 +15,13 @@
     --line-faint:   rgba(28, 74, 115, 0.14);
     --ink:          #142433;
     --ink-dim:      #4c6178;
-    --annotation:   #b5772b;   /* grease-pencil amber */
+    --annotation:   #b5772b;   /* grease-pencil amber — manual markup */
     --pass:         #1f7a68;   /* reassembled / pass-through */
+    --accent-a:     #6a4fa0;   /* colored-pencil violet — Segment A */
+    --accent-b:     #2c7a94;   /* colored-pencil teal — Segment B */
+    --warn:         #b23a56;   /* colored-pencil rose — DPI inspection zone */
+    --glow-a:       rgba(0,0,0,0);
+    --glow-b:       rgba(0,0,0,0);
     --code-bg:      #e9e4d4;
   }
   @media (prefers-color-scheme: dark) {
@@ -29,7 +34,12 @@
       --ink:          #eef3f7;
       --ink-dim:      #a9c0d4;
       --annotation:   #e0a458;
-      --pass:         #7fd9c4;
+      --pass:         #8fe0cc;
+      --accent-a:     #c3b6f2;
+      --accent-b:     #8ecfe0;
+      --warn:         #f0a3b4;
+      --glow-a:       rgba(195, 182, 242, 0.12);
+      --glow-b:       rgba(142, 207, 224, 0.10);
       --code-bg:      #0c2440;
     }
   }
@@ -37,11 +47,15 @@
     --field: #f2efe4; --field-raised: #ffffff; --line: #1c4a73; --line-dim: #5c7691;
     --line-faint: rgba(28, 74, 115, 0.14); --ink: #142433; --ink-dim: #4c6178;
     --annotation: #b5772b; --pass: #1f7a68; --code-bg: #e9e4d4;
+    --accent-a: #6a4fa0; --accent-b: #2c7a94; --warn: #b23a56;
+    --glow-a: rgba(0,0,0,0); --glow-b: rgba(0,0,0,0);
   }
   :root[data-theme="dark"] {
     --field: #0f2a47; --field-raised: #123151; --line: #eef3f7; --line-dim: #8aa8c2;
     --line-faint: rgba(238, 243, 247, 0.10); --ink: #eef3f7; --ink-dim: #a9c0d4;
-    --annotation: #e0a458; --pass: #7fd9c4; --code-bg: #0c2440;
+    --annotation: #e0a458; --pass: #8fe0cc; --code-bg: #0c2440;
+    --accent-a: #c3b6f2; --accent-b: #8ecfe0; --warn: #f0a3b4;
+    --glow-a: rgba(195, 182, 242, 0.12); --glow-b: rgba(142, 207, 224, 0.10);
   }
 
   * { box-sizing: border-box; }
@@ -50,6 +64,8 @@
   body {
     margin: 0;
     background:
+      radial-gradient(60% 50% at 12% 0%,  var(--glow-a), transparent 65%),
+      radial-gradient(55% 45% at 100% 100%, var(--glow-b), transparent 65%),
       repeating-linear-gradient(0deg,  var(--line-faint) 0 1px, transparent 1px 32px),
       repeating-linear-gradient(90deg, var(--line-faint) 0 1px, transparent 1px 32px),
       var(--field);
@@ -88,8 +104,11 @@
   /* ── title block ── */
   .titleblock { display: flex; flex-direction: column; gap: 22px; padding-bottom: 24px; border-bottom: 2px solid var(--line); }
   .eyebrow {
-    font-family: inherit; font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
     font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--annotation);
+    display: inline-block; padding: 3px 9px;
+    border: 1px solid color-mix(in srgb, var(--annotation) 55%, transparent);
+    background: color-mix(in srgb, var(--annotation) 10%, transparent);
   }
   h1 {
     font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
@@ -118,6 +137,13 @@
   }
   dl.meta dd { margin: 0; font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace; font-size: 13.5px; color: var(--ink); }
   dl.meta dd a { color: var(--ink); text-decoration-color: var(--line-dim); }
+  dl.meta dd.chip {
+    display: inline-block; color: var(--pass);
+    border: 1px solid color-mix(in srgb, var(--pass) 55%, transparent);
+    background: color-mix(in srgb, var(--pass) 12%, transparent);
+    padding: 1px 8px;
+  }
+  dl.meta dd.chip a { color: inherit; text-decoration: none; }
 
   .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
   .btn {
@@ -128,7 +154,8 @@
     letter-spacing: 0.02em;
   }
   .btn-primary { background: var(--line); color: var(--field-raised); }
-  .btn-ghost { color: var(--ink); background: transparent; }
+  .btn-ghost { color: var(--ink); background: transparent; transition: border-color .15s, color .15s; }
+  .btn-ghost:hover { border-color: var(--accent-a); color: var(--accent-a); }
 
   /* ── sections ── */
   section { padding: 34px 0; border-bottom: 1px solid var(--line-faint); }
@@ -147,11 +174,18 @@
   .schematic { width: 100%; height: auto; display: block; }
   .schematic text { font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace; }
   .schem-line { fill: none; stroke: var(--line); stroke-width: 1.5; }
-  .schem-dash { fill: none; stroke: var(--line-dim); stroke-width: 1; stroke-dasharray: 4 4; }
+  .schem-dash { fill: none; stroke: var(--warn); stroke-width: 1; stroke-dasharray: 4 4; opacity: .75; }
   .schem-box { fill: none; stroke: var(--line); stroke-width: 1.5; }
+  .schem-box-a { fill: none; stroke: var(--accent-a); stroke-width: 1.5; }
+  .schem-box-b { fill: none; stroke: var(--accent-b); stroke-width: 1.5; }
+  .schem-line-a { fill: none; stroke: var(--accent-a); stroke-width: 1.5; }
+  .schem-line-b { fill: none; stroke: var(--accent-b); stroke-width: 1.5; }
   .schem-label { fill: var(--ink); font-size: 11px; letter-spacing: 0.04em; }
+  .schem-label-a { fill: var(--accent-a); font-size: 11px; letter-spacing: 0.04em; }
+  .schem-label-b { fill: var(--accent-b); font-size: 11px; letter-spacing: 0.04em; }
   .schem-sub   { fill: var(--ink-dim); font-size: 9.5px; }
   .schem-annot { fill: var(--annotation); font-size: 9.5px; }
+  .schem-warn  { fill: var(--warn); font-size: 9.5px; }
   .schem-pass  { fill: var(--pass); font-size: 9.5px; }
   .schem-vert  { writing-mode: vertical-rl; }
 
@@ -176,6 +210,9 @@
     font-size: 13px; white-space: nowrap;
   }
   td { color: var(--ink-dim); }
+  .dot { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; }
+  .dot-a { background: var(--accent-a); }
+  .dot-b { background: var(--accent-b); }
 
   /* ── quick start ── */
   ol.steps { list-style: none; margin: 0 0 20px; padding: 0; counter-reset: step; }
@@ -236,7 +273,7 @@
         <div><dt>Platform</dt><dd>Windows 10 / 11</dd></div>
         <div><dt>Privilege</dt><dd>Administrator</dd></div>
         <div><dt>Author</dt><dd><a href="https://github.com/savvy773">@savvy773</a></dd></div>
-        <div><dt>License</dt><dd><a href="https://github.com/savvy773/dpi-bye/blob/main/LICENSE">MIT</a></dd></div>
+        <div><dt>License</dt><dd class="chip"><a href="https://github.com/savvy773/dpi-bye/blob/main/LICENSE">MIT</a></dd></div>
       </dl>
       <div class="cta">
         <a class="btn btn-primary" href="https://github.com/savvy773/dpi-bye">View on GitHub</a>
@@ -261,6 +298,12 @@
             <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M0,0 L8,4 L0,8 z" fill="var(--line)"></path>
             </marker>
+            <marker id="arrow-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L8,4 L0,8 z" fill="var(--accent-a)"></path>
+            </marker>
+            <marker id="arrow-b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L8,4 L0,8 z" fill="var(--accent-b)"></path>
+            </marker>
           </defs>
 
           <rect class="schem-box" x="8" y="76" width="104" height="48" rx="1"></rect>
@@ -270,24 +313,24 @@
           <path class="schem-line draw" pathLength="1" d="M112,100 L165,100" marker-end="url(#arrow)"></path>
           <text class="schem-annot" x="138" y="90" text-anchor="middle">SNI=blocked.site</text>
 
-          <path class="schem-line draw d2" pathLength="1" d="M165,100 L200,52 L262,52" marker-end="url(#arrow)"></path>
-          <path class="schem-line draw d2" pathLength="1" d="M165,100 L200,148 L262,148" marker-end="url(#arrow)"></path>
+          <path class="schem-line-a draw d2" pathLength="1" d="M165,100 L200,52 L262,52" marker-end="url(#arrow-a)"></path>
+          <path class="schem-line-b draw d2" pathLength="1" d="M165,100 L200,148 L262,148" marker-end="url(#arrow-b)"></path>
 
-          <rect class="schem-box" x="262" y="28" width="92" height="46" rx="1"></rect>
-          <text class="schem-label" x="308" y="49" text-anchor="middle">SEG A</text>
+          <rect class="schem-box-a" x="262" y="28" width="92" height="46" rx="1"></rect>
+          <text class="schem-label-a" x="308" y="49" text-anchor="middle">SEG A</text>
           <text class="schem-sub" x="308" y="63" text-anchor="middle">no SNI</text>
 
-          <rect class="schem-box" x="262" y="124" width="92" height="46" rx="1"></rect>
-          <text class="schem-label" x="308" y="145" text-anchor="middle">SEG B</text>
+          <rect class="schem-box-b" x="262" y="124" width="92" height="46" rx="1"></rect>
+          <text class="schem-label-b" x="308" y="145" text-anchor="middle">SEG B</text>
           <text class="schem-sub" x="308" y="159" text-anchor="middle">no TLS header</text>
 
           <line class="schem-dash" x1="418" y1="10" x2="418" y2="190"></line>
           <line class="schem-dash" x1="466" y1="10" x2="466" y2="190"></line>
           <text class="schem-sub schem-vert" x="446" y="60" text-anchor="middle">ISP DPI</text>
-          <text class="schem-annot" x="442" y="140" text-anchor="middle">no match</text>
+          <text class="schem-warn" x="442" y="140" text-anchor="middle">no match</text>
 
-          <path class="schem-line draw d3" pathLength="1" d="M354,51 L490,51 L520,97" marker-end="url(#arrow)"></path>
-          <path class="schem-line draw d3" pathLength="1" d="M354,147 L490,147 L520,103" marker-end="url(#arrow)"></path>
+          <path class="schem-line-a draw d3" pathLength="1" d="M354,51 L490,51 L520,97" marker-end="url(#arrow-a)"></path>
+          <path class="schem-line-b draw d3" pathLength="1" d="M354,147 L490,147 L520,103" marker-end="url(#arrow-b)"></path>
 
           <rect class="schem-box" x="520" y="76" width="104" height="48" rx="1"></rect>
           <text class="schem-label" x="572" y="97" text-anchor="middle">SERVER</text>
@@ -302,8 +345,8 @@
       <table>
         <thead><tr><th>Mode</th><th>How</th><th>When to use</th></tr></thead>
         <tbody>
-          <tr><td>packet_size ★</td><td>Split into N-byte chunks — more segments, stronger bypass</td><td>Default; works on most ISPs</td></tr>
-          <tr><td>offset</td><td>Parse SNI extension, split at hostname midpoint — 2 segments only</td><td>Lower CPU; try if packet_size is too slow</td></tr>
+          <tr><td><span class="dot dot-a"></span>packet_size ★</td><td>Split into N-byte chunks — more segments, stronger bypass</td><td>Default; works on most ISPs</td></tr>
+          <tr><td><span class="dot dot-b"></span>offset</td><td>Parse SNI extension, split at hostname midpoint — 2 segments only</td><td>Lower CPU; try if packet_size is too slow</td></tr>
         </tbody>
       </table>
     </section>
