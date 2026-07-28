@@ -1,0 +1,43 @@
+[project]
+name = "dpi-bypass"
+version = "0.1.0"
+description = "TLS ClientHello fragmentation DPI bypass (WinDivert)"
+requires-python = ">=3.10"
+dependencies = [
+    "pydivert>=3.1.3",
+]
+
+[project.scripts]
+dpi-bypass = "main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+exclude = [".venv", ".uv-cache", "_temp", ".data", "_quarantine_*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.uv]
+link-mode = "copy"
+package = true
+
+[tool.setuptools]
+py-modules = ["main", "engine"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+extraPaths = [".venv/Lib/site-packages"]
