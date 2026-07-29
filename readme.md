@@ -158,3 +158,5 @@ A reboot also clears all WinDivert kernel state.
 - QUIC / HTTP3 (UDP 443) is not handled.
 - WinDivert driver is loaded on Connect and unloaded on Disconnect/Quit — no permanent installation.
 - For personal and educational use. Verify compliance with your ISP's terms of service.
+
+
