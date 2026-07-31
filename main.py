@@ -203,6 +203,29 @@ def _minimap(presets: list[int], value: int) -> str:
 _REC_SIZE_IDX = 1   # mid (10)
 _REC_OFF_IDX  = 0   # small (4)
 
+_STATUS_DESC = {
+    "Connected":    "Bypass is ACTIVE — traffic is being fragmented, DPI is being bypassed.",
+    "Connecting":   "Starting bypass — not yet active.",
+    "Disconnected": "Bypass is OFF — internet traffic is normal, unmodified.",
+    "Error":        "Bypass failed to start — check WinDivert driver / admin rights.",
+}
+
+
+def _set_console_title(status: str) -> None:
+    if sys.platform != "win32":
+        return
+    try:
+        label = {
+            "Connected": "Connected",
+            "Connecting": "Connecting…",
+            "Disconnected": "Disconnected",
+            "Error": "Error",
+        }.get(status, status)
+        ctypes.windll.kernel32.SetConsoleTitleW(f"DPI Fragment Bypass — {label}")
+    except Exception:
+        pass
+
+
 _DESC = [
     "Intercept TLS handshake · start SNI fragmentation · WinDivert filter on",
     "Smaller = stronger bypass, higher CPU  │  5 aggressive · 10 recommended★ · 20 light",
@@ -236,7 +259,9 @@ def render(engine: Engine, sel: int) -> None:
         if engine.running else ""
     )
     print(f"  {bg}{fg}{BOLD} {si} {engine.status.upper()} {RST}{frag_str}")
+    print(f"  {C_GRAY}{_STATUS_DESC.get(engine.status, '')}{RST}")
     print()
+    _set_console_title(engine.status)
 
     # ── Menu ──
     sz_idx = _nearest_preset_idx(SIZE_PRESETS, s.packet_size)
@@ -339,14 +364,24 @@ _CTRL_HANDLER_REF: object = None  # prevent GC of ctypes callback
 
 
 def _install_ctrl_handler(engine: Engine) -> None:
-    """Handle terminal-window close (CTRL_CLOSE_EVENT) on Windows."""
+    """Handle console-window close / logoff / shutdown on Windows.
+
+    Stops the engine and force-exits ourselves instead of chaining to
+    Windows' default handler — the default grace period is a few seconds
+    and isn't guaranteed to let a background thread finish joining, so we
+    don't rely on it to actually kill the process.
+    """
     CTRL_CLOSE_EVENT = 2
+    CTRL_LOGOFF_EVENT = 5
+    CTRL_SHUTDOWN_EVENT = 6
     HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
 
     def _handler(ctrl_type: int) -> bool:
-        if ctrl_type == CTRL_CLOSE_EVENT:
+        if ctrl_type in (CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT):
             engine.stop()
-        return False  # chain to default (lets Windows terminate normally)
+            save_settings(engine.settings)
+            os._exit(0)
+        return False
 
     global _CTRL_HANDLER_REF
     _CTRL_HANDLER_REF = HandlerRoutine(_handler)
