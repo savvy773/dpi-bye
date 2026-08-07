@@ -116,12 +116,18 @@ class Engine:
                 break
             time.sleep(0.1)
 
-    def stop(self) -> None:
+    def stop(self, wait: bool = True) -> None:
+        """Release WinDivert and mark Disconnected.
+
+        wait=False skips joining the worker thread — use for emergency paths
+        (console close / Ctrl+C handler) where Windows may kill us within seconds.
+        Closing the handle is what actually restores normal internet traffic.
+        """
         self._stop.set()
         self._close_handle()
-        if self._thread:
+        if wait and self._thread is not None:
             self._thread.join(timeout=3.0)
-            self._thread = None
+        self._thread = None
         self.running = False
         self.status = "Disconnected"
 
