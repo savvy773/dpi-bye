@@ -36,7 +36,9 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-Set-Location $PSScriptRoot
+# scripts/dpi-bypass.ps1 → project root (pyproject.toml, main.py)
+$projectRoot = Split-Path $PSScriptRoot -Parent
+Set-Location $projectRoot
 
 function Stop-DllHolders {
     foreach ($dll in @("WinDivert64.dll", "WinDivert.dll")) {
@@ -64,14 +66,22 @@ function Stop-WinDivertDriver {
 }
 
 function Stop-ProjectProcesses {
+    # Match uv/console-script launches: main.py, dpi-bypass, dpi_bypass, ...
+    $pattern = "main\.py|dpi[-_]bypass"
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         Where-Object {
             $_.ProcessId -ne $PID -and
             $(if ($_.Name) { $_.Name } else { "" }) -in @("python.exe", "pythonw.exe") -and
-            $(if ($_.CommandLine) { $_.CommandLine } else { "" }) -match "main\.py|dpi_bypass"
+            $(if ($_.CommandLine) { $_.CommandLine } else { "" }) -match $pattern
         } |
         ForEach-Object {
             & taskkill.exe /F /T /PID $_.ProcessId 2>$null | Out-Null
+        }
+    # Also kill the console-script shim if present (dpi-bypass.exe)
+    Get-Process -Name "dpi-bypass" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Id -ne $PID } |
+        ForEach-Object {
+            & taskkill.exe /F /T /PID $_.Id 2>$null | Out-Null
         }
     Start-Sleep -Milliseconds 300
 }
@@ -99,6 +109,15 @@ if ($Stop) {
 Stop-ProjectProcesses
 Stop-DllHolders
 
+# Always disconnect when this host process ends (q / Ctrl+C / window close race /
+# crash). Connect is temporary; normal internet must be restored on exit.
+function Disconnect-DpiBypass {
+    Write-Host "[*] Disconnecting — releasing WinDivert..." -ForegroundColor Cyan
+    Stop-ProjectProcesses
+    Stop-DllHolders
+    Stop-WinDivertDriver
+}
+
 $exitCode = 0
 try {
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
@@ -116,8 +135,10 @@ catch {
     Write-Host "[!] $($_.Exception.Message)" -ForegroundColor Red
 }
 finally {
-    Stop-DllHolders
-    Stop-WinDivertDriver
+    # Runs on normal exit, Ctrl+C (PipelineStopped), and most terminating errors.
+    # Console X-button is primarily handled inside Python (SetConsoleCtrlHandler);
+    # this is the PS-side safety net if python dies uncleanly.
+    Disconnect-DpiBypass
     if ($exitCode -ne 0) { Read-Host "Press Enter to close" }
 }
 exit $exitCode
