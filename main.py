@@ -361,27 +361,41 @@ def activate_item(engine: Engine, sel: int) -> bool:
 
 
 _CTRL_HANDLER_REF: object = None  # prevent GC of ctypes callback
+_CLEANUP_DONE = False
 
 
 def _install_ctrl_handler(engine: Engine) -> None:
-    """Handle console-window close / logoff / shutdown on Windows.
+    """Disconnect on console close / Ctrl+C / Ctrl+Break / logoff / shutdown.
 
-    Stops the engine and force-exits ourselves instead of chaining to
-    Windows' default handler — the default grace period is a few seconds
-    and isn't guaranteed to let a background thread finish joining, so we
-    don't rely on it to actually kill the process.
+    Handler runs on a Windows control thread — close the WinDivert handle
+    immediately (wait=False) then force-exit. Default OS grace period is short;
+    joining the worker thread is not worth the risk of leaving the filter up.
     """
+    CTRL_C_EVENT = 0
+    CTRL_BREAK_EVENT = 1
     CTRL_CLOSE_EVENT = 2
     CTRL_LOGOFF_EVENT = 5
     CTRL_SHUTDOWN_EVENT = 6
+    HANDLED = {
+        CTRL_C_EVENT,
+        CTRL_BREAK_EVENT,
+        CTRL_CLOSE_EVENT,
+        CTRL_LOGOFF_EVENT,
+        CTRL_SHUTDOWN_EVENT,
+    }
     HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
 
     def _handler(ctrl_type: int) -> bool:
-        if ctrl_type in (CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT):
-            engine.stop()
+        if ctrl_type not in HANDLED:
+            return False
+        try:
+            engine.stop(wait=False)
             save_settings(engine.settings)
-            os._exit(0)
-        return False
+        except Exception:
+            pass
+        # os._exit skips atexit — handle is already closed above
+        os._exit(0)
+        return True  # unreachable; keeps type checkers happy
 
     global _CTRL_HANDLER_REF
     _CTRL_HANDLER_REF = HandlerRoutine(_handler)
@@ -405,12 +419,27 @@ def main() -> None:
     engine = Engine(settings=load_settings())
 
     def cleanup(*_: object) -> None:
-        engine.stop()
-        save_settings(engine.settings)
+        """Idempotent disconnect — safe from atexit, signals, and finally."""
+        global _CLEANUP_DONE
+        if _CLEANUP_DONE:
+            return
+        _CLEANUP_DONE = True
+        try:
+            engine.stop()
+        finally:
+            try:
+                save_settings(engine.settings)
+            except Exception:
+                pass
+
+    def _signal_exit(*_: object) -> None:
+        # Custom SIGINT replaces KeyboardInterrupt — must exit ourselves.
+        cleanup()
+        raise SystemExit(0)
 
     atexit.register(cleanup)
-    signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, _signal_exit)
+    signal.signal(signal.SIGTERM, _signal_exit)
     _install_ctrl_handler(engine)
 
     if engine.settings.auto_connect:
@@ -438,7 +467,7 @@ def main() -> None:
                     break
             elif key in ("q", "quit", "exit", "0"):
                 break
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         pass
     finally:
         cleanup()
